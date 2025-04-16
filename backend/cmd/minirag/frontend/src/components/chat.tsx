@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { sendChatMessage } from '../lib/chat';
 import { ChatResponse } from '../lib/types';
 import { Bot, User } from 'lucide-react';
+import { MemoizedMarkdown } from './MemoizedMarkdown';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -88,11 +89,14 @@ export function Chat() {
                 <div
                   className={`rounded-2xl px-4 py-2 text-sm ${
                     message.role === 'user'
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-blue-500 text-white markdown-content-light'
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  {message.content}
+                  <MemoizedMarkdown 
+                    content={message.content} 
+                    id={`msg-${index}`} 
+                  />
                 </div>
                 {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
                   <div className="mt-2 space-y-2 w-full">
@@ -105,7 +109,12 @@ export function Chat() {
                             {(source.similarity * 100).toFixed(1)}%
                           </span>
                         </div>
-                        <p className="text-gray-600">{source.content}</p>
+                        <div className="text-gray-600">
+                          <MemoizedMarkdown 
+                            content={source.content} 
+                            id={`source-${index}-${idx}`} 
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
