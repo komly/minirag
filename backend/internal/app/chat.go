@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/philippgille/chromem-go"
 )
 
 type ChatRequest struct {
@@ -51,8 +49,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get relevant documents
-	ollamaEmbeddingURL := a.cfg.OllamaURL + "/api"
-	coll := a.db.GetCollection("docs", chromem.NewEmbeddingFuncOllama("nomic-embed-text", ollamaEmbeddingURL))
+	coll := a.db.GetCollection("docs", a.embeddingFunc)
 
 	results, err := coll.Query(r.Context(), req.Query, 3, nil, nil)
 	if err != nil {

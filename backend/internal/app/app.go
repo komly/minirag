@@ -19,9 +19,10 @@ import (
 )
 
 type App struct {
-	cfg      *config.Config
-	db       *chromem.DB
-	metadata *Metadata
+	cfg           *config.Config
+	db            *chromem.DB
+	metadata      *Metadata
+	embeddingFunc chromem.EmbeddingFunc
 }
 
 type Metadata struct {
@@ -39,6 +40,10 @@ func NewApp(cfg *config.Config) (*App, error) {
 		cfg:      cfg,
 		metadata: &Metadata{Files: make(map[string]FileInfo)},
 	}
+
+	// Initialize embedding function
+	ollamaEmbeddingURL := cfg.OllamaURL + "/api"
+	app.embeddingFunc = chromem.NewEmbeddingFuncOllama(cfg.OllamaEmbedModel, ollamaEmbeddingURL)
 
 	// Load or initialize metadata
 	if err := app.loadMetadata(); err != nil {
@@ -68,6 +73,7 @@ func (a *App) Run(mux *http.ServeMux) error {
 	// Start HTTP server
 	mux.HandleFunc("/query", a.handleQuery)
 	mux.HandleFunc("/chat", a.handleChat)
+	mux.HandleFunc("/debug/db", a.handleDebugDB)
 
 	log.Printf("Server starting on port %d...", a.cfg.Port)
 	log.Printf("Documents indexed: %d", len(a.metadata.Files))
@@ -78,10 +84,7 @@ func (a *App) indexDocuments() error {
 	ctx := context.Background()
 
 	// Create or get collection with proper error handling
-	ollamaEmbeddingURL := a.cfg.OllamaURL + "/api"
-	log.Printf("Ollama embedding URL: %s", ollamaEmbeddingURL)
-	embeddingFunc := chromem.NewEmbeddingFuncOllama("nomic-embed-text", ollamaEmbeddingURL)
-	coll, err := a.db.CreateCollection("docs", map[string]string{}, embeddingFunc)
+	coll, err := a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
 	if err != nil {
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
@@ -164,8 +167,7 @@ func (a *App) handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get relevant documents
-	ollamaEmbeddingURL := a.cfg.OllamaURL + "/api"
-	coll := a.db.GetCollection("docs", chromem.NewEmbeddingFuncOllama("nomic-embed-text", ollamaEmbeddingURL))
+	coll := a.db.GetCollection("docs", a.embeddingFunc)
 
 	results, err := coll.Query(r.Context(), req.Query, 1, nil, nil)
 	if err != nil {
@@ -218,4 +220,40 @@ func isTextFile(path string) bool {
 		".log": true,
 	}
 	return textExtensions[ext]
+}
+
+func (a *App) handleDebugDB(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type DebugInfo struct {
+		CollectionName string              `json:"collection_name"`
+		DocumentCount  int                 `json:"document_count"`
+		Metadata       map[string]FileInfo `json:"metadata"`
+		Config         struct {
+			OllamaURL        string `json:"ollama_url"`
+			OllamaModel      string `json:"ollama_model"`
+			OllamaEmbedModel string `json:"ollama_embed_model"`
+		} `json:"config"`
+	}
+
+	debugInfo := DebugInfo{
+		CollectionName: "docs",
+		DocumentCount:  len(a.metadata.Files),
+		Metadata:       a.metadata.Files,
+		Config: struct {
+			OllamaURL        string `json:"ollama_url"`
+			OllamaModel      string `json:"ollama_model"`
+			OllamaEmbedModel string `json:"ollama_embed_model"`
+		}{
+			OllamaURL:        a.cfg.OllamaURL,
+			OllamaModel:      a.cfg.OllamaModel,
+			OllamaEmbedModel: a.cfg.OllamaEmbedModel,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(debugInfo)
 }

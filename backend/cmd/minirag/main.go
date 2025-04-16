@@ -25,6 +25,7 @@ func main() {
 	flag.StringVar(&cfg.DataDir, "data", "./data", "Directory for storing index and metadata")
 	flag.StringVar(&cfg.OllamaURL, "ollama-url", "http://127.0.0.1:11434", "Ollama API URL")
 	flag.StringVar(&cfg.OllamaModel, "ollama-model", "nomic-embed-text:latest", "Ollama model name for chat")
+	flag.StringVar(&cfg.OllamaEmbedModel, "ollama-embed-model", "nomic-embed-text", "Ollama model name for embeddings")
 	flag.IntVar(&cfg.Port, "port", 8080, "Server port")
 	flag.BoolVar(&cfg.DevMode, "dev", false, "Run in development mode")
 	flag.Parse()
