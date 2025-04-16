@@ -1,0 +1,8 @@
+USE THIS INFORMATION BEFORE ANY ACTION
+there is 2 parts of application
+- React vite typescript spa in ./frontend directory
+- Golang app with backend and handler to serve files from compiled frontend directory
+
+always use pnpm instead of npm
+right way to compose url for a NewEmbeddingFuncOllama
+ollamaEmbeddingURL := a.cfg.OllamaURL + "/api"
