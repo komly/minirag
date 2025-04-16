@@ -21,7 +21,7 @@ var frontendFS embed.FS
 func main() {
 	cfg := &config.Config{}
 
-	flag.StringVar(&cfg.DocsDir, "docs", "./cmd/minirag/docs", "Directory containing documents to index")
+	flag.StringVar(&cfg.DocsDir, "docs", "./docs", "Directory containing documents to index")
 	flag.StringVar(&cfg.DataDir, "data", "./data", "Directory for storing index and metadata")
 	flag.StringVar(&cfg.OllamaURL, "ollama-url", "http://127.0.0.1:11434", "Ollama API URL")
 	flag.StringVar(&cfg.OllamaModel, "ollama-model", "gemma3:4b", "Ollama model name for chat")
@@ -63,8 +63,8 @@ func main() {
 
 	// Ensure directories exist
 	for _, dir := range []string{cfg.DocsDir, cfg.DataDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			log.Fatalf("Failed to create directory %s: %v", dir, err)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			log.Fatalf("Directory does not exist: %s", dir)
 		}
 	}
 

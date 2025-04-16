@@ -1,0 +1,10 @@
+backend/cmd/minirag/docs/*
+backend/cmd/minirag/data/*
+backend/cmd/minirag/frontend/dist/*
+backend/cmd/minirag/frontend/node_modules/*
+backend/cmd/minirag/frontend/.env
+backend/cmd/minirag/frontend/.env.local
+backend/cmd/minirag/frontend/.env.development.local
+backend/cmd/minirag/frontend/.env.production.local
+backend/cmd/minirag/frontend/.env.test.local
+
