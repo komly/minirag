@@ -1,4 +1,0 @@
-This is a test document for the MiniRAG application.
-It contains some sample text that we can use to test the document search functionality.
-The application uses chromem-go for vector embeddings and document retrieval.
-We can add more documents to test different search queries and results. 

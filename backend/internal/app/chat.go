@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"time"
 )
@@ -33,6 +34,7 @@ type ollamaRequest struct {
 	Messages    []Message `json:"messages"`
 	Temperature float64   `json:"temperature,omitempty"`
 	MaxTokens   int       `json:"num_predict,omitempty"`
+	Stream      bool      `json:"stream"`
 }
 
 type Message struct {
@@ -63,47 +65,56 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		req.Temperature = 0.7
 	}
 	if req.MaxTokens == 0 {
-		req.MaxTokens = 1000
+		req.MaxTokens = 10000
 	}
 
 	// Get relevant documents
 	coll := a.db.GetCollection("docs", a.embeddingFunc)
 
-	results, err := coll.Query(r.Context(), req.Query, 3, nil, nil)
-	if err != nil {
-		log.Printf("Query failed: %v", err)
-		http.Error(w, "Query failed", http.StatusInternalServerError)
-		return
-	}
-
-	// Prepare context from relevant documents
 	var context string
 	var sources []Document
-	for _, doc := range results {
-		context += fmt.Sprintf("\nDocument %s:\n%s\n", doc.ID, doc.Content)
-		sources = append(sources, Document{
-			ID:         doc.ID,
-			Content:    doc.Content,
-			Similarity: float64(doc.Similarity),
-		})
+
+	maxResults := math.Min(3, float64(coll.Count()))
+	results, err := coll.Query(r.Context(), req.Query, int(maxResults), nil, nil)
+	if err != nil {
+		log.Printf("Query failed: %v", err)
+	} else {
+		for _, doc := range results {
+			context += fmt.Sprintf("\nDocument %s:\n%s\n", doc.ID, doc.Content)
+			sources = append(sources, Document{
+				ID:         doc.ID,
+				Content:    doc.Content,
+				Similarity: float64(doc.Similarity),
+			})
+		}
 	}
 
 	// Prepare prompt
-	prompt := fmt.Sprintf(`Use the following documents to answer the question. If you cannot find the answer in the documents, say so.
+	prompt := fmt.Sprintf(`You are a helpful AI assistant. Your task is to provide detailed and informative answers based on the given context.
+
+Instructions:
+1. Read the context carefully
+2. Provide a complete, well-structured answer
+3. If the context doesn't contain enough information, acknowledge that and provide general guidance
+4. Always write full sentences and complete thoughts
+5. Use markdown formatting for better readability
 
 Context:
 %s
 
-Question: %s
+User Question: %s
 
-Answer based on the above context:`, context, req.Query)
-
+Important: Provide a complete, detailed response. Never stop at single words or incomplete sentences.
+IMPORTANT: ANSWER IN LANGUAGE OF THE USER QUESTION.
+Response:`, context, req.Query)
+	log.Printf("Prompt: %s", prompt)
 	// Call Ollama
 	ollamaReq := ollamaRequest{
 		Model:       a.cfg.OllamaModel,
 		Messages:    []Message{{Role: "user", Content: prompt}},
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
+		Stream:      false,
 	}
 
 	ollamaBody, err := json.Marshal(ollamaReq)
@@ -142,6 +153,7 @@ Answer based on the above context:`, context, req.Query)
 		ProcessingTimeMs: time.Since(startTime).Milliseconds(),
 	}
 
+	log.Printf("Response: %+v", response)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

@@ -45,18 +45,36 @@ func NewApp(cfg *config.Config) (*App, error) {
 	ollamaEmbeddingURL := cfg.OllamaURL + "/api"
 	app.embeddingFunc = chromem.NewEmbeddingFuncOllama(cfg.OllamaEmbedModel, ollamaEmbeddingURL)
 
-	// Load or initialize metadata
+	// Initialize vector database
+	app.db = chromem.NewDB()
+
+	// Load metadata first
 	if err := app.loadMetadata(); err != nil {
 		return nil, fmt.Errorf("failed to load metadata: %w", err)
 	}
 
-	// Initialize vector database
-	app.db = chromem.NewDB()
-
 	// Load existing DB if it exists
 	if _, err := os.Stat(cfg.DBFile); err == nil {
+		log.Printf("Found existing DB file, loading...")
 		if err := app.loadDB(); err != nil {
 			return nil, fmt.Errorf("failed to load vector database: %w", err)
+		}
+
+		// Важно: сначала удалим существующую коллекцию, если она есть
+		app.db.DeleteCollection("docs")
+
+		// Создаем новую коллекцию
+		_, err = app.db.CreateCollection("docs", map[string]string{}, app.embeddingFunc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create collection after DB load: %w", err)
+		}
+		log.Printf("Successfully restored collection with %d documents", len(app.metadata.Files))
+	} else {
+		log.Printf("No existing DB file found, starting fresh")
+		// Create initial collection if no DB exists
+		_, err = app.db.CreateCollection("docs", map[string]string{}, app.embeddingFunc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create initial collection: %w", err)
 		}
 	}
 
@@ -83,21 +101,30 @@ func (a *App) Run(mux *http.ServeMux) error {
 func (a *App) indexDocuments() error {
 	ctx := context.Background()
 
-	// Create or get collection with proper error handling
-	coll, err := a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
-	if err != nil {
-		return fmt.Errorf("failed to create collection: %w", err)
+	// Get existing collection or create new one
+	coll := a.db.GetCollection("docs", a.embeddingFunc)
+	if coll == nil {
+		var err error
+		coll, err = a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
+		if err != nil {
+			return fmt.Errorf("failed to create collection: %w", err)
+		}
 	}
 
-	// If force-reindex is set, clear the metadata
+	// If force-reindex is set, clear everything
 	if a.cfg.ForceReindex {
-		log.Printf("Force reindexing enabled, clearing existing metadata")
+		log.Printf("Force reindexing enabled, clearing existing metadata and collection")
 		a.metadata.Files = make(map[string]FileInfo)
+		// Remove and recreate collection
+		a.db.DeleteCollection("docs")
+		coll, _ = a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
 	}
 
+	log.Printf("Current metadata contains %d files", len(a.metadata.Files))
 	log.Printf("Indexing documents in: %s", a.cfg.DocsDir)
+
 	// Walk through docs directory
-	err = filepath.Walk(a.cfg.DocsDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(a.cfg.DocsDir, func(path string, info os.FileInfo, err error) error {
 		log.Printf("Walking path: %s", path)
 		if err != nil {
 			return err
@@ -180,7 +207,7 @@ func (a *App) handleQuery(w http.ResponseWriter, r *http.Request) {
 	// Get relevant documents
 	coll := a.db.GetCollection("docs", a.embeddingFunc)
 
-	results, err := coll.Query(r.Context(), req.Query, 1, nil, nil)
+	results, err := coll.Query(r.Context(), req.Query, 5, nil, nil)
 	if err != nil {
 		log.Printf("Query failed: %v", err)
 		http.Error(w, "Query failed", http.StatusInternalServerError)
@@ -214,7 +241,21 @@ func (a *App) saveMetadata() error {
 }
 
 func (a *App) loadDB() error {
-	return a.db.Import(a.cfg.DBFile, "")
+	log.Printf("Loading vector database from: %s", a.cfg.DBFile)
+	err := a.db.Import(a.cfg.DBFile, "")
+	if err != nil {
+		return fmt.Errorf("failed to import DB: %w", err)
+	}
+
+	// Проверяем состояние после загрузки
+	coll := a.db.GetCollection("docs", a.embeddingFunc)
+	if coll == nil {
+		log.Printf("Warning: Collection 'docs' not found after DB load")
+	} else {
+		log.Printf("Successfully loaded vector database and found 'docs' collection")
+	}
+
+	return nil
 }
 
 func (a *App) saveDB() error {

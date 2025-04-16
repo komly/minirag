@@ -7,4 +7,8 @@ backend/cmd/minirag/frontend/.env.local
 backend/cmd/minirag/frontend/.env.development.local
 backend/cmd/minirag/frontend/.env.production.local
 backend/cmd/minirag/frontend/.env.test.local
-
+convert_txt_to_md.sh
+links.list
+parse.py
+parse.py
+backend/cmd/minirag/.DS_Store
