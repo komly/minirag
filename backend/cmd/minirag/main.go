@@ -21,13 +21,14 @@ var frontendFS embed.FS
 func main() {
 	cfg := &config.Config{}
 
-	flag.StringVar(&cfg.DocsDir, "docs", "./docs", "Directory containing documents to index")
+	flag.StringVar(&cfg.DocsDir, "docs", "./cmd/minirag/docs", "Directory containing documents to index")
 	flag.StringVar(&cfg.DataDir, "data", "./data", "Directory for storing index and metadata")
 	flag.StringVar(&cfg.OllamaURL, "ollama-url", "http://127.0.0.1:11434", "Ollama API URL")
-	flag.StringVar(&cfg.OllamaModel, "ollama-model", "nomic-embed-text:latest", "Ollama model name for chat")
+	flag.StringVar(&cfg.OllamaModel, "ollama-model", "gemma3:4b", "Ollama model name for chat")
 	flag.StringVar(&cfg.OllamaEmbedModel, "ollama-embed-model", "nomic-embed-text", "Ollama model name for embeddings")
 	flag.IntVar(&cfg.Port, "port", 8080, "Server port")
 	flag.BoolVar(&cfg.DevMode, "dev", false, "Run in development mode")
+	flag.BoolVar(&cfg.ForceReindex, "force-reindex", false, "Force reindexing of all documents, ignoring saved state")
 	flag.Parse()
 
 	// Create a new mux

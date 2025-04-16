@@ -4,16 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 )
 
 type ChatRequest struct {
-	Query string `json:"query"`
+	Query       string  `json:"query"`
+	Temperature float64 `json:"temperature,omitempty"`
+	MaxTokens   int     `json:"max_tokens,omitempty"`
 }
 
 type ChatResponse struct {
-	Answer  string     `json:"answer"`
-	Sources []Document `json:"sources"`
+	Answer           string     `json:"answer"`
+	Sources          []Document `json:"sources"`
+	Model            string     `json:"model"`
+	ProcessingTimeMs int64      `json:"processing_time_ms"`
 }
 
 type Document struct {
@@ -23,8 +29,10 @@ type Document struct {
 }
 
 type ollamaRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
+	Model       string    `json:"model"`
+	Messages    []Message `json:"messages"`
+	Temperature float64   `json:"temperature,omitempty"`
+	MaxTokens   int       `json:"num_predict,omitempty"`
 }
 
 type Message struct {
@@ -37,6 +45,8 @@ type ollamaResponse struct {
 }
 
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -48,11 +58,20 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set defaults if not provided
+	if req.Temperature == 0 {
+		req.Temperature = 0.7
+	}
+	if req.MaxTokens == 0 {
+		req.MaxTokens = 1000
+	}
+
 	// Get relevant documents
 	coll := a.db.GetCollection("docs", a.embeddingFunc)
 
 	results, err := coll.Query(r.Context(), req.Query, 3, nil, nil)
 	if err != nil {
+		log.Printf("Query failed: %v", err)
 		http.Error(w, "Query failed", http.StatusInternalServerError)
 		return
 	}
@@ -81,35 +100,46 @@ Answer based on the above context:`, context, req.Query)
 
 	// Call Ollama
 	ollamaReq := ollamaRequest{
-		Model: a.cfg.OllamaModel,
-		Messages: []Message{
-			{Role: "user", Content: prompt},
-		},
+		Model:       a.cfg.OllamaModel,
+		Messages:    []Message{{Role: "user", Content: prompt}},
+		Temperature: req.Temperature,
+		MaxTokens:   req.MaxTokens,
 	}
 
 	ollamaBody, err := json.Marshal(ollamaReq)
 	if err != nil {
+		log.Printf("Failed to create Ollama request: %v", err)
 		http.Error(w, "Failed to create Ollama request", http.StatusInternalServerError)
 		return
 	}
 
 	ollamaResp, err := http.Post(a.cfg.OllamaURL+"/api/chat", "application/json", bytes.NewBuffer(ollamaBody))
 	if err != nil {
+		log.Printf("Failed to call Ollama API: %v", err)
 		http.Error(w, "Failed to call Ollama API", http.StatusInternalServerError)
 		return
 	}
 	defer ollamaResp.Body.Close()
 
+	if ollamaResp.StatusCode != http.StatusOK {
+		log.Printf("Ollama API returned status %d", ollamaResp.StatusCode)
+		http.Error(w, "Ollama API request failed", http.StatusInternalServerError)
+		return
+	}
+
 	var ollama ollamaResponse
 	if err := json.NewDecoder(ollamaResp.Body).Decode(&ollama); err != nil {
+		log.Printf("Failed to decode Ollama response: %v", err)
 		http.Error(w, "Failed to decode Ollama response", http.StatusInternalServerError)
 		return
 	}
 
 	// Send response
 	response := ChatResponse{
-		Answer:  ollama.Message.Content,
-		Sources: sources,
+		Answer:           ollama.Message.Content,
+		Sources:          sources,
+		Model:            a.cfg.OllamaModel,
+		ProcessingTimeMs: time.Since(startTime).Milliseconds(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

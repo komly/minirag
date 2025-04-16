@@ -1,0 +1,22 @@
+Development Setup:
+
+1. Prerequisites:
+   - Go 1.21 or later
+   - Node.js and pnpm
+   - Ollama running locally
+
+2. Frontend Development:
+   cd frontend
+   pnpm install
+   pnpm dev
+
+3. Backend Development:
+   cd backend
+   go run cmd/minirag/main.go --dev
+
+4. Testing:
+   - Unit tests: go test ./...
+   - Integration tests: Manual testing with curl
+   - Debug endpoint: /debug/db
+
+The development environment supports hot reloading for both frontend and backend. 

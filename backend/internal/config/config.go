@@ -10,4 +10,5 @@ type Config struct {
 	MetadataFile     string
 	DBFile           string
 	DevMode          bool
+	ForceReindex     bool
 }

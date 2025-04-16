@@ -89,24 +89,34 @@ func (a *App) indexDocuments() error {
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
 
+	// If force-reindex is set, clear the metadata
+	if a.cfg.ForceReindex {
+		log.Printf("Force reindexing enabled, clearing existing metadata")
+		a.metadata.Files = make(map[string]FileInfo)
+	}
+
+	log.Printf("Indexing documents in: %s", a.cfg.DocsDir)
 	// Walk through docs directory
 	err = filepath.Walk(a.cfg.DocsDir, func(path string, info os.FileInfo, err error) error {
+		log.Printf("Walking path: %s", path)
 		if err != nil {
 			return err
 		}
 
 		// Skip directories and non-text files
 		if info.IsDir() || !isTextFile(path) {
+			log.Printf("Skipping non-text file: %s", path)
 			return nil
 		}
 
 		// Check if file needs indexing
 		relPath, _ := filepath.Rel(a.cfg.DocsDir, path)
 		fileInfo, exists := a.metadata.Files[relPath]
-		if exists && fileInfo.LastModified.Equal(info.ModTime()) && fileInfo.Size == info.Size() {
+		if !a.cfg.ForceReindex && exists && fileInfo.LastModified.Equal(info.ModTime()) && fileInfo.Size == info.Size() {
 			log.Printf("Skipping unchanged file: %s", relPath)
 			return nil
 		}
+		log.Printf("Indexing file: %s", relPath)
 
 		// Read and index file
 		content, err := os.ReadFile(path)
@@ -166,6 +176,7 @@ func (a *App) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Query: %s", req.Query)
 	// Get relevant documents
 	coll := a.db.GetCollection("docs", a.embeddingFunc)
 

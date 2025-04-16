@@ -1,0 +1,12 @@
+Ollama Integration:
+
+The application uses Ollama for two main purposes:
+1. Text embeddings using nomic-embed-text model
+2. Chat completion using the configured model
+
+Configuration:
+- Ollama URL: http://127.0.0.1:11434
+- Embedding model: nomic-embed-text
+- Chat model: configurable via command line
+
+The system automatically handles document indexing and query processing using Ollama's API endpoints. 
