@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	"minirag/internal/app"
@@ -22,7 +23,7 @@ func main() {
 	cfg := &config.Config{}
 
 	flag.StringVar(&cfg.DocsDir, "docs", "./docs", "Directory containing documents to index")
-	flag.StringVar(&cfg.DataDir, "data", "./data", "Directory for storing index and metadata")
+	flag.StringVar(&cfg.DataDir, "data", "", "Directory for storing index and metadata")
 	flag.StringVar(&cfg.OllamaURL, "ollama-url", "http://127.0.0.1:11434", "Ollama API URL")
 	flag.StringVar(&cfg.OllamaModel, "ollama-model", "gemma3:12b", "Ollama model name for chat")
 	flag.StringVar(&cfg.OllamaEmbedModel, "ollama-embed-model", "nomic-embed-text:latest", "Ollama model name for embeddings")
@@ -30,6 +31,28 @@ func main() {
 	flag.BoolVar(&cfg.DevMode, "dev", false, "Run in development mode")
 	flag.BoolVar(&cfg.ForceReindex, "force-reindex", false, "Force reindexing of all documents, ignoring saved state")
 	flag.Parse()
+
+	// If DataDir is not set, use ~/.minirag
+	if cfg.DataDir == "" {
+		usr, err := user.Current()
+		if err != nil {
+			log.Fatalf("Failed to get current user: %v", err)
+		}
+		cfg.DataDir = filepath.Join(usr.HomeDir, ".minirag")
+	}
+
+	// Ensure directories exist (create if not exist)
+	for _, dir := range []string{cfg.DocsDir, cfg.DataDir} {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				log.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+	}
+
+	// Initialize metadata file path
+	cfg.MetadataFile = filepath.Join(cfg.DataDir, "metadata.json")
+	cfg.DBFile = filepath.Join(cfg.DataDir, "vectordb.gob")
 
 	// Create a new mux
 	mux := http.NewServeMux()
@@ -60,17 +83,6 @@ func main() {
 
 		log.Printf("Production server starting on :%d...", cfg.Port)
 	}
-
-	// Ensure directories exist
-	for _, dir := range []string{cfg.DocsDir, cfg.DataDir} {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			log.Fatalf("Directory does not exist: %s", dir)
-		}
-	}
-
-	// Initialize metadata file path
-	cfg.MetadataFile = filepath.Join(cfg.DataDir, "metadata.json")
-	cfg.DBFile = filepath.Join(cfg.DataDir, "vectordb.gob")
 
 	// Create and run application
 	app, err := app.NewApp(cfg)
