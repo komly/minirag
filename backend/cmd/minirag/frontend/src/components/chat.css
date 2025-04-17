@@ -1,0 +1,23 @@
+/* Красивый скроллбар для чата */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #60a5fa #f3f4f6; /* blue-400 и gray-100 */
+}
+
+/* Для Chrome, Edge и Safari */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  background: #f3f4f6; /* gray-100 */
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #60a5fa; /* blue-400 */
+  border-radius: 8px;
+  min-height: 24px;
+  border: 2px solid #f3f4f6;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #2563eb; /* blue-600 */
+} 

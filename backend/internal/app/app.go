@@ -60,14 +60,6 @@ func NewApp(cfg *config.Config) (*App, error) {
 			return nil, fmt.Errorf("failed to load vector database: %w", err)
 		}
 
-		// Важно: сначала удалим существующую коллекцию, если она есть
-		app.db.DeleteCollection("docs")
-
-		// Создаем новую коллекцию
-		_, err = app.db.CreateCollection("docs", map[string]string{}, app.embeddingFunc)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create collection after DB load: %w", err)
-		}
 		log.Printf("Successfully restored collection with %d documents", len(app.metadata.Files))
 	} else {
 		log.Printf("No existing DB file found, starting fresh")
@@ -242,7 +234,7 @@ func (a *App) saveMetadata() error {
 
 func (a *App) loadDB() error {
 	log.Printf("Loading vector database from: %s", a.cfg.DBFile)
-	err := a.db.Import(a.cfg.DBFile, "")
+	err := a.db.ImportFromFile(a.cfg.DBFile, "", "docs")
 	if err != nil {
 		return fmt.Errorf("failed to import DB: %w", err)
 	}
@@ -259,7 +251,7 @@ func (a *App) loadDB() error {
 }
 
 func (a *App) saveDB() error {
-	return a.db.Export(a.cfg.DBFile, true, "")
+	return a.db.ExportToFile(a.cfg.DBFile, true, "", "docs")
 }
 
 func isTextFile(path string) bool {
