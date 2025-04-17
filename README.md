@@ -1,5 +1,7 @@
 # MiniRAG - Minimalist, Self-Hosted, Single-Binary RAG
 
+![Demo Screenshot](docs/screenshot.png)
+
 **MiniRAG** is a minimalist, self-hosted Retrieval-Augmented Generation (RAG) solution.  
 It runs as a **single static binary** on your machine—no cloud, no dependencies, no external services.
 
