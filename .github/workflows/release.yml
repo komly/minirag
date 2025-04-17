@@ -1,4 +1,6 @@
 name: Release Binaries
+env:
+  PNPM_CACHE_FOLDER: .pnpm-store
 
 on:
   push:
@@ -25,7 +27,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
-          cache-dependency-path: "./backend/cmd/minirag/frontend/pnpm-lock.yaml"
+          cache-dependency-path: '**/pnpm-lock.yaml'
+      - name: Setup pnpm store config
+        run: pnpm config set store-dir $PNPM_CACHE_FOLDER
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
