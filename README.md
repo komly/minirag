@@ -1,5 +1,12 @@
 # MiniRAG - Minimalist, Self-Hosted, Single-Binary RAG
 
+> **Main Idea:**  
+> **Start chatting with your data in seconds:**  
+> ```sh
+> minirag -docs=mydata
+> ```
+> That's it. No setup, no config, just point to your folder and go!
+
 ![Demo Screenshot](doc/screenshot.png)
 
 **MiniRAG** is a minimalist, self-hosted Retrieval-Augmented Generation (RAG) solution.  
