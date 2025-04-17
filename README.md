@@ -1,6 +1,11 @@
-# MiniRAG - A Minimalist RAG Implementation
+# MiniRAG - Minimalist, Self-Hosted, Single-Binary RAG
 
-> A single-binary RAG system that lets you chat with your documents. Just drop your files, run the binary, and start asking questions.
+**MiniRAG** is a minimalist, self-hosted Retrieval-Augmented Generation (RAG) solution.  
+It runs as a **single static binary** on your machine—no cloud, no dependencies, no external services.
+
+- **Self-hosted:** All data and LLM inference stay on your device.
+- **Single binary:** Download, run, and you're ready—no Docker, no Python, no Node.js required.
+- **Private & secure:** Your documents and chat never leave your computer.
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)
 ![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react)
