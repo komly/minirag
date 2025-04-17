@@ -22,7 +22,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+          cache-dependency-path: backend/cmd/minirag/frontend/pnpm-lock.yaml
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
