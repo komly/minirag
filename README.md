@@ -1,5 +1,10 @@
 # MiniRAG - Minimalist, Self-Hosted, Single-Binary RAG
 
+![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)
+![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=for-the-badge&logo=typescript)
+![Ollama](https://img.shields.io/badge/Ollama-0.1+-000000?style=for-the-badge&logo=ollama)
+
 > **Killer Feature:**  
 > **Start chatting with your data in seconds:**  
 > ```sh
@@ -16,10 +21,6 @@ It runs as a **single static binary** on your machine—no cloud, no dependencie
 - **Single binary:** Download, run, and you're ready—no Docker, no Python, no Node.js required.
 - **Private & secure:** Your documents and chat never leave your computer.
 
-![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)
-![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=for-the-badge&logo=typescript)
-![Ollama](https://img.shields.io/badge/Ollama-0.1+-000000?style=for-the-badge&logo=ollama)
 
 MiniRAG is a lightweight, production-ready implementation of Retrieval-Augmented Generation (RAG) that combines the power of large language models with efficient document retrieval. Built with Go and React, it provides a modern, responsive interface for interacting with your documents.
 
