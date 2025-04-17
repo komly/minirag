@@ -90,6 +90,8 @@ func main() {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 
+	log.Printf("Starting application...")
+	log.Printf("Server is running on http://127.0.0.1:%d", cfg.Port)
 	if err := app.Run(mux); err != nil {
 		log.Fatalf("Application error: %v", err)
 	}
