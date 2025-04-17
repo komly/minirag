@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { Bot, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { sendChatMessage } from '../lib/chat';
 import { ChatResponse } from '../lib/types';
-import { Bot, User } from 'lucide-react';
 import { MemoizedMarkdown } from './MemoizedMarkdown';
-import { useTheme } from "next-themes";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,7 +13,6 @@ interface Message {
 }
 
 export function Chat() {
-  const { theme, setTheme } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);

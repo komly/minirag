@@ -1,4 +1,4 @@
-.PHONY: build-frontend build-backend clean dev-frontend dev-backend dev static-build
+.PHONY: build-frontend build-backend clean dev-frontend dev-backend dev static-build static-build-all
 
 # Build the frontend React app
 build-frontend:
@@ -38,8 +38,22 @@ dev:
 # Build a static binary with embedded frontend
 static-build: build-frontend
 	@echo "Building static binary..."
-	cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ../app
-	@echo "Static binary built successfully: ./app"
+	mkdir -p bin
+	cd backend/cmd/minirag && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ../../../bin/minirag
+	@echo "Static binary built successfully: ./bin/minirag"
+
+# Build static binaries for multiple platforms (macOS, Linux, Windows)
+static-build-all: build-frontend
+	@echo "Building static binary for Linux (amd64)..."
+	mkdir -p bin
+	cd backend/cmd/minirag && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ../../../bin/minirag-linux-amd64
+	@echo "Building static binary for macOS (amd64)..."
+	cd backend/cmd/minirag && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o ../../../bin/minirag-darwin-amd64
+	@echo "Building static binary for macOS (arm64)..."
+	cd backend/cmd/minirag && CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o ../../../bin/minirag-darwin-arm64
+	@echo "Building static binary for Windows (amd64)..."
+	cd backend/cmd/minirag && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-w -s" -o ../../../bin/minirag-windows-amd64.exe
+	@echo "Static binaries built successfully in ./bin: minirag-linux-amd64, minirag-darwin-amd64, minirag-darwin-arm64, minirag-windows-amd64.exe"
 
 # Default target
 all: build-backend 

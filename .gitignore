@@ -12,3 +12,6 @@ links.list
 parse.py
 parse.py
 backend/cmd/minirag/.DS_Store
+
+# Binaries output
+/bin/
