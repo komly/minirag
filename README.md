@@ -3,7 +3,7 @@
 > **Killer Feature:**  
 > **Start chatting with your data in seconds:**  
 > ```sh
-> minirag -docs=mydata
+> minirag -doc=mydata
 > ```
 > That's it. No setup, no config, just point to your folder and go!
 
