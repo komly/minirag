@@ -1,13 +1,13 @@
 # MiniRAG - Minimalist, Self-Hosted, Single-Binary RAG
 
-> **Main Idea:**  
+> **Killer Feature:**  
 > **Start chatting with your data in seconds:**  
 > ```sh
 > minirag -docs=mydata
 > ```
 > That's it. No setup, no config, just point to your folder and go!
 
-![Demo Screenshot](doc/screenshot.png)
+![Demo Screenshot](docs/screenshot.png)
 
 **MiniRAG** is a minimalist, self-hosted Retrieval-Augmented Generation (RAG) solution.  
 It runs as a **single static binary** on your machine—no cloud, no dependencies, no external services.
@@ -23,6 +23,25 @@ It runs as a **single static binary** on your machine—no cloud, no dependencie
 
 MiniRAG is a lightweight, production-ready implementation of Retrieval-Augmented Generation (RAG) that combines the power of large language models with efficient document retrieval. Built with Go and React, it provides a modern, responsive interface for interacting with your documents.
 
+## 🍺 Install MiniRAG via Homebrew
+
+```sh
+brew tap komly/minirag
+brew install minirag
+```
+
+Then run:
+
+```sh
+minirag -docs=mydata
+```
+
+- By default, MiniRAG will store its data in `~/.minirag`.
+- You can specify a different data directory with the `-data` flag if needed.
+- The server will listen on `:7492` by default. You can change this with the `-http` flag.
+
+---
+
 ## 🚀 Features
 
 - **Document Indexing**: Automatically indexes text documents with vector embeddings
@@ -37,24 +56,6 @@ MiniRAG is a lightweight, production-ready implementation of Retrieval-Augmented
 - Node.js 18+ and pnpm
 - Ollama running locally
 - Text documents to index
-
-## 🚀 Quick Install & Run (macOS M1-M4)
-
-You can install and run the latest minirag release in one line:
-
-```sh
-curl -L https://github.com/komly/minirag/releases/download/v1.0.7/minirag-darwin-arm64 -o minirag && chmod +x minirag && mkdir -p data && ./minirag -docs=app/
-```
-
-- This will:
-  - Download the latest static binary for macOS ARM64
-  - Make it executable
-  - Create the `data` directory (required for storage)
-  - Run the app with your documents in the `app/` directory
-
-- For other platforms, download the appropriate binary from [Releases](https://github.com/komly/minirag/releases).
-
-4. Add your documents to the `docs` directory
 
 ## 🛡️ 100% Local LLM & Data Safety
 
@@ -98,11 +99,11 @@ curl -L https://github.com/komly/minirag/releases/download/v1.0.7/minirag-darwin
 ### Command Line Options
 
 - `--docs`: Directory containing documents to index (default: "./docs")
-- `--data`: Directory for storing index and metadata (default: "./data")
+- `--data`: Directory for storing index and metadata (default: "~/.minirag")
 - `--ollama-url`: Ollama API URL (default: "http://127.0.0.1:11434")
-- `--ollama-model`: Chat model name (default: "gemma3:4b")
-- `--ollama-embed-model`: Embedding model name (default: "nomic-embed-text")
-- `--port`: Server port (default: 8080)
+- `--ollama-model`: Chat model name (default: "gemma3:12b")
+- `--ollama-embed-model`: Embedding model name (default: "nomic-embed-text:latest")
+- `--http`: HTTP listen address (default: ":7492", e.g. ":7492" or "0.0.0.0:7492")
 - `--dev`: Run in development mode
 - `--force-reindex`: Force reindexing of all documents
 
@@ -161,20 +162,20 @@ The `minirag` binary supports the following flags:
 | Flag           | Default         | Description                                                                 |
 |----------------|----------------|-----------------------------------------------------------------------------|
 | `-docs`        | `docs/`        | Path to the directory with documents to index and search.                   |
-| `-data`        | `data/`        | Path to the directory for storing vector DB and metadata.                   |
-| `-port`        | `8080`         | Port to run the HTTP server on.                                             |
+| `-data`        | `~/.minirag`   | Path to the directory for storing vector DB and metadata.                   |
+| `-http`        | `:7492`        | HTTP listen address (e.g. ':7492' or '0.0.0.0:7492').                       |
 | `-dev`         | (off)          | Enable development mode (useful for hot-reload and debugging).              |
 | `-force-reindex` | (off)        | Force reindexing of all documents on startup, ignoring previous metadata.   |
 
 ### Example usage
 
 ```sh
-./minirag -docs=app/ -data=data/ -port=8080
+minirag -docs=app/ -data=~/.minirag -http=:8080
 ```
 
 - `-docs=app/` — use the `app/` directory for your documents.
-- `-data=data/` — store all vector DB and metadata in the `data/` directory.
-- `-port=8080` — run the web server on port 8080 (default).
+- `-data=~/.minirag` — store all vector DB and metadata in the `~/.minirag` directory.
+- `-http=:8080` — run the web server on port 8080.
 
 > **Tip:** You can combine flags as needed. If you omit a flag, the default value will be used.
 

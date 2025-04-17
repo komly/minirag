@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -73,7 +72,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	return app, nil
 }
 
-func (a *App) Run(mux *http.ServeMux) error {
+func (a *App) Run(mux *http.ServeMux, addr string) error {
 
 	// Index documents
 	if err := a.indexDocuments(); err != nil {
@@ -85,9 +84,20 @@ func (a *App) Run(mux *http.ServeMux) error {
 	mux.HandleFunc("/chat", a.handleChat)
 	mux.HandleFunc("/debug/db", a.handleDebugDB)
 
-	log.Printf("Server starting on port %d...", a.cfg.Port)
 	log.Printf("Documents indexed: %d", len(a.metadata.Files))
-	return http.ListenAndServe(":"+strconv.Itoa(a.cfg.Port), mux)
+	log.Printf("Server is running on http://%s", trimHostPrefix(addr))
+	return http.ListenAndServe(addr, mux)
+}
+
+// Helper to print address nicely in logs
+func trimHostPrefix(addr string) string {
+	if addr == "" {
+		return "localhost"
+	}
+	if addr[0] == ':' {
+		return "127.0.0.1" + addr
+	}
+	return addr
 }
 
 func (a *App) indexDocuments() error {

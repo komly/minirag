@@ -27,7 +27,7 @@ func main() {
 	flag.StringVar(&cfg.OllamaURL, "ollama-url", "http://127.0.0.1:11434", "Ollama API URL")
 	flag.StringVar(&cfg.OllamaModel, "ollama-model", "gemma3:12b", "Ollama model name for chat")
 	flag.StringVar(&cfg.OllamaEmbedModel, "ollama-embed-model", "nomic-embed-text:latest", "Ollama model name for embeddings")
-	flag.IntVar(&cfg.Port, "port", 8080, "Server port")
+	httpAddr := flag.String("http", ":7492", "HTTP listen address (e.g. ':7492' or '0.0.0.0:7492')")
 	flag.BoolVar(&cfg.DevMode, "dev", false, "Run in development mode")
 	flag.BoolVar(&cfg.ForceReindex, "force-reindex", false, "Force reindexing of all documents, ignoring saved state")
 	flag.Parse()
@@ -69,7 +69,7 @@ func main() {
 			proxy.ServeHTTP(w, r)
 		})
 
-		log.Printf("Development server starting on :%d...", cfg.Port)
+		log.Printf("Development server starting on %s...", *httpAddr)
 		log.Printf("Proxying requests to Vite dev server at http://localhost:5173")
 	} else {
 		// Production mode - serve embedded frontend files
@@ -81,7 +81,7 @@ func main() {
 		frontendHandler := http.FileServer(http.FS(frontend))
 		mux.Handle("/", frontendHandler)
 
-		log.Printf("Production server starting on :%d...", cfg.Port)
+		log.Printf("Production server starting on %s...", *httpAddr)
 	}
 
 	// Create and run application
@@ -91,8 +91,8 @@ func main() {
 	}
 
 	log.Printf("Starting application...")
-	log.Printf("Server is running on http://127.0.0.1:%d", cfg.Port)
-	if err := app.Run(mux); err != nil {
+
+	if err := app.Run(mux, *httpAddr); err != nil {
 		log.Fatalf("Application error: %v", err)
 	}
 }

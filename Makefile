@@ -39,7 +39,7 @@ dev:
 static-build: build-frontend
 	@echo "Building static binary..."
 	mkdir -p bin
-	cd backend/cmd/minirag && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ../../../bin/minirag
+	cd backend/cmd/minirag && go build -ldflags="-w -s" -o ../../../bin/minirag
 	@echo "Static binary built successfully: ./bin/minirag"
 
 # Build static binaries for multiple platforms (macOS, Linux, Windows)

@@ -107,7 +107,6 @@ User Question: %s
 Important: Provide a complete, detailed response. Never stop at single words or incomplete sentences.
 IMPORTANT: ANSWER IN LANGUAGE OF THE USER QUESTION.
 Response:`, context, req.Query)
-	log.Printf("Prompt: %s", prompt)
 	// Call Ollama
 	ollamaReq := ollamaRequest{
 		Model:       a.cfg.OllamaModel,
@@ -153,7 +152,6 @@ Response:`, context, req.Query)
 		ProcessingTimeMs: time.Since(startTime).Milliseconds(),
 	}
 
-	log.Printf("Response: %+v", response)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
