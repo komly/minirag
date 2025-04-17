@@ -15,7 +15,6 @@ MiniRAG is a lightweight, production-ready implementation of Retrieval-Augmented
 - **Smart Search**: Uses semantic search to find relevant document chunks
 - **Chat Interface**: Modern React-based chat UI with source attribution
 - **Ollama Integration**: Works with any Ollama-compatible model
-- **Development Mode**: Hot reloading for both frontend and backend
 - **Production Ready**: Single binary deployment with embedded frontend
 
 ## 📋 Prerequisites
@@ -42,6 +41,15 @@ curl -L https://github.com/komly/minirag/releases/download/v1.0.7/minirag-darwin
 - For other platforms, download the appropriate binary from [Releases](https://github.com/komly/minirag/releases).
 
 4. Add your documents to the `docs` directory
+
+## 🛡️ 100% Local LLM & Data Safety
+
+**minirag** runs **entirely locally** on your machine:
+- All LLM inference and document indexing happen on your computer.
+- **No data ever leaves your device.**
+- Your documents and chat history are never sent to any external server or cloud.
+
+> **Your data stays private and secure.**
 
 ## 🚀 Usage
 
@@ -132,6 +140,28 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Ollama](https://ollama.ai/) for LLM integration
 - [React](https://reactjs.org/) and [Vite](https://vitejs.dev/) for frontend
 
+## ⚙️ Command-line Flags
 
+The `minirag` binary supports the following flags:
+
+| Flag           | Default         | Description                                                                 |
+|----------------|----------------|-----------------------------------------------------------------------------|
+| `-docs`        | `docs/`        | Path to the directory with documents to index and search.                   |
+| `-data`        | `data/`        | Path to the directory for storing vector DB and metadata.                   |
+| `-port`        | `8080`         | Port to run the HTTP server on.                                             |
+| `-dev`         | (off)          | Enable development mode (useful for hot-reload and debugging).              |
+| `-force-reindex` | (off)        | Force reindexing of all documents on startup, ignoring previous metadata.   |
+
+### Example usage
+
+```sh
+./minirag -docs=app/ -data=data/ -port=8080
+```
+
+- `-docs=app/` — use the `app/` directory for your documents.
+- `-data=data/` — store all vector DB and metadata in the `data/` directory.
+- `-port=8080` — run the web server on port 8080 (default).
+
+> **Tip:** You can combine flags as needed. If you omit a flag, the default value will be used.
 
 --- 
