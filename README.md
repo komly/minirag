@@ -25,24 +25,21 @@ MiniRAG is a lightweight, production-ready implementation of Retrieval-Augmented
 - Ollama running locally
 - Text documents to index
 
-## 🛠️ Installation
+## 🚀 Quick Install & Run (macOS M1-M4)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/minirag.git
-   cd minirag
-   ```
+You can install and run the latest minirag release in one line:
 
-2. Install frontend dependencies:
-   ```bash
-   cd backend/cmd/minirag/frontend
-   pnpm install
-   ```
+```sh
+curl -L https://github.com/komly/minirag/releases/download/v1.0.7/minirag-darwin-arm64 -o minirag && chmod +x minirag && mkdir -p data && ./minirag -docs=app/
+```
 
-3. Create required directories:
-   ```bash
-   mkdir -p data docs
-   ```
+- This will:
+  - Download the latest static binary for macOS ARM64
+  - Make it executable
+  - Create the `data` directory (required for storage)
+  - Run the app with your documents in the `app/` directory
+
+- For other platforms, download the appropriate binary from [Releases](https://github.com/komly/minirag/releases).
 
 4. Add your documents to the `docs` directory
 
@@ -133,4 +130,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [chromem-go](https://github.com/philippgille/chromem-go) for vector database
 - [Ollama](https://ollama.ai/) for LLM integration
-- [React](https://reactjs.org/) and [Vite](https://vitejs.dev/) for frontend 
+- [React](https://reactjs.org/) and [Vite](https://vitejs.dev/) for frontend
+
+
+
+--- 
