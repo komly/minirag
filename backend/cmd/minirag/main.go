@@ -42,7 +42,7 @@ func main() {
 	}
 
 	// Ensure directories exist (create if not exist)
-	for _, dir := range []string{cfg.DocsDir, cfg.DataDir} {
+	for _, dir := range []string{cfg.DataDir} {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				log.Fatalf("Failed to create directory %s: %v", dir, err)
