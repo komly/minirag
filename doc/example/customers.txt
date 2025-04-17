@@ -1,0 +1,9 @@
+Customer List
+
+- Alice
+- Bob
+- Charlie
+- David
+- Eve
+- Frank
+- Grace 

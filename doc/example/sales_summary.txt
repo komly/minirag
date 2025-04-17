@@ -1,0 +1,6 @@
+Sales Summary
+
+- The most popular product in January was the Widget.
+- Alice made the most purchases in both January and February.
+- The highest single order was Frank's purchase of 4 Gadgets in February.
+- Total sales increased from January to February. 

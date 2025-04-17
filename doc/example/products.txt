@@ -1,0 +1,5 @@
+Product Catalog
+
+- Widget: $19.99
+- Gadget: $29.99
+- Thingamajig: $9.99 

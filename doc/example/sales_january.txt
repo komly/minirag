@@ -1,0 +1,7 @@
+January Sales Report
+
+Order 1001: Alice bought 3 Widgets for $19.99 each on 2024-01-05.
+Order 1002: Bob bought 2 Gadgets for $29.99 each on 2024-01-07.
+Order 1003: Charlie bought 1 Widget for $19.99 on 2024-01-10.
+Order 1004: Alice bought 5 Thingamajigs for $9.99 each on 2024-01-12.
+Order 1005: David bought 1 Gadget for $29.99 on 2024-01-15. 
