@@ -19,6 +19,7 @@ export function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Scroll to bottom only if autoScroll is enabled
   useEffect(() => {
@@ -54,9 +55,7 @@ export function Chat() {
     };
   }, []);
 
-  // SSE streaming chat handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
@@ -69,6 +68,10 @@ export function Chat() {
     // Add empty assistant message for streaming
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
+    // Create and store AbortController
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       const response = await fetch('/chat', {
         method: 'POST',
@@ -78,6 +81,7 @@ export function Chat() {
           temperature: 0.7,
           max_tokens: 1000,
         }),
+        signal: abortController.signal,
       });
 
       if (!response.body) throw new Error('No response body');
@@ -87,16 +91,12 @@ export function Chat() {
       let done = false;
       let assistantContent = '';
       let buffer = '';
-      let sources: ChatResponse['sources'] | undefined = undefined;
-      let model: string | undefined = undefined;
-      let processing_time_ms: number | undefined = undefined;
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         if (value) {
           buffer += decoder.decode(value, { stream: true });
-          // Process SSE chunks
           const parts = buffer.split('\n\n');
           buffer = parts.pop() || '';
           for (const part of parts) {
@@ -104,6 +104,7 @@ export function Chat() {
               const data = part.slice(6).trim();
               if (data === '[DONE]') {
                 setLoading(false);
+                abortControllerRef.current = null;
                 break;
               }
               try {
@@ -111,14 +112,20 @@ export function Chat() {
                 if (parsed.role === 'assistant') {
                   assistantContent += parsed.content;
                   setMessages(prev => {
-                    // Update the last assistant message
                     const updated = [...prev];
                     updated[updated.length - 1] = {
                       ...updated[updated.length - 1],
                       content: assistantContent,
-                      sources,
-                      model,
-                      processing_time_ms,
+                    };
+                    return updated;
+                  });
+                } else if (parsed.type === 'meta' && parsed.meta) {
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                      ...updated[updated.length - 1],
+                      ...parsed.meta,
+                      content: updated[updated.length - 1].content,
                     };
                     return updated;
                   });
@@ -131,8 +138,28 @@ export function Chat() {
         }
       }
       setLoading(false);
+      abortControllerRef.current = null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      if ((err as any).name !== 'AbortError') {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      }
+      setLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // SSE streaming chat handler
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    await sendMessage();
+  };
+
+  // Handler for stop button
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
       setLoading(false);
     }
   };
@@ -173,20 +200,12 @@ export function Chat() {
                   <div className="mt-2 space-y-2 w-full">
                     <h4 className="text-xs font-medium text-muted-foreground">Sources:</h4>
                     {message.sources.map((source, idx) => (
-                      <div key={idx} className="text-xs p-2 bg-muted rounded-lg">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium truncate">{source.id}</span>
-                          <span className="text-muted-foreground">
-                            {(source.similarity * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground">
-                          <MemoizedMarkdown 
-                            content={source.content} 
-                            id={`source-${index}-${idx}`} 
-                          />
-                        </div>
-                      </div>
+                      <SourceCollapse
+                        key={idx}
+                        source={source}
+                        similarity={source.similarity}
+                        id={`source-${index}-${idx}`}
+                      />
                     ))}
                   </div>
                 )}
@@ -219,14 +238,54 @@ export function Chat() {
             disabled={loading}
           />
           <button
-            type="submit"
-            disabled={loading || !input.trim()}
+            type="button"
+            onClick={() => {
+              if (loading) {
+                handleStop();
+              } else {
+                sendMessage();
+              }
+            }}
+            disabled={!input.trim() && !loading}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
           >
-            {loading ? 'Sending...' : 'Send'}
+            {loading ? 'Stop' : 'Send'}
           </button>
+
         </div>
       </form>
+    </div>
+  );
+}
+
+// Collapsible source component
+function SourceCollapse({
+  source,
+  similarity,
+  id,
+}: {
+  source: { id: string; content: string };
+  similarity: number;
+  id: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="text-xs bg-muted rounded-lg mb-2">
+      <button
+        className="flex justify-between items-center w-full px-2 py-1 font-medium truncate text-left hover:bg-muted/70 rounded-t-lg"
+        onClick={() => setOpen((v) => !v)}
+        type="button"
+      >
+        <span className="truncate">{source.id}</span>
+        <span className="ml-2 text-muted-foreground">{(similarity * 100).toFixed(1)}%</span>
+        <span className="ml-2">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="p-2 text-muted-foreground">
+          <MemoizedMarkdown content={source.content} id={id} />
+        </div>
+      )}
     </div>
   );
 } 

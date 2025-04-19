@@ -47,6 +47,7 @@ type ollamaResponse struct {
 }
 
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -159,6 +160,21 @@ Response:`, context, req.Query)
 		}))
 		flusher.Flush()
 	}
+
+	// Calculate processing time
+	processingTimeMs := time.Since(startTime).Milliseconds()
+
+	// Send sources and metadata as a final event before [DONE]
+	meta := map[string]interface{}{
+		"sources":            sources,
+		"model":              a.cfg.OllamaModel,
+		"processing_time_ms": processingTimeMs,
+	}
+	fmt.Fprintf(w, "data: %s\n\n", encodeJSON(map[string]interface{}{
+		"type": "meta",
+		"meta": meta,
+	}))
+	flusher.Flush()
 
 	// Send [DONE]
 	fmt.Fprint(w, "data: [DONE]\n\n")
