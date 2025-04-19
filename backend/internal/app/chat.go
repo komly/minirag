@@ -43,6 +43,7 @@ type Message struct {
 }
 
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
@@ -71,7 +72,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	var sources []Document
 
 	maxResults := math.Min(10, float64(coll.Count()))
-	results, err := coll.Query(r.Context(), req.Query, int(maxResults), nil, nil)
+	results, err := coll.Query(ctx, req.Query, int(maxResults), nil, nil)
 	if err != nil {
 		log.Printf("Query failed: %v", err)
 	} else {
@@ -119,7 +120,15 @@ Response:`, context, req.Query)
 		return
 	}
 
-	ollamaResp, err := http.Post(a.cfg.OllamaURL+"/api/chat", "application/json", bytes.NewBuffer(ollamaBody))
+	ollamaHttpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.cfg.OllamaURL+"/api/chat", bytes.NewBuffer(ollamaBody))
+	if err != nil {
+		log.Printf("Failed to create Ollama request: %v", err)
+		http.Error(w, "Failed to create Ollama request", http.StatusInternalServerError)
+		return
+	}
+
+	ollamaHttpReq.Header.Set("Content-Type", "application/json")
+	ollamaResp, err := http.DefaultClient.Do(ollamaHttpReq)
 	if err != nil {
 		log.Printf("Failed to call Ollama API: %v", err)
 		http.Error(w, "Failed to call Ollama API", http.StatusInternalServerError)
