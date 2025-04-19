@@ -23,7 +23,7 @@ dev-backend:
 	@echo "Waiting for frontend server to be ready..."
 	@while ! curl -s http://localhost:5173 > /dev/null; do sleep 1; done
 	@echo "Frontend server is ready, starting backend..."
-	cd backend/cmd/minirag && go run main.go -dev
+	cd backend/cmd/minirag && go run main.go -dev -docs ../../../doc/example
 
 # Development mode - run both frontend and backend
 dev:

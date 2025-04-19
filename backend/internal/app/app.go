@@ -25,7 +25,8 @@ type App struct {
 }
 
 type Metadata struct {
-	Files map[string]FileInfo `json:"files"`
+	Files    map[string]FileInfo `json:"files"`
+	DataPath string              `json:"data_path"`
 }
 
 type FileInfo struct {
@@ -47,32 +48,49 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// Initialize vector database
 	app.db = chromem.NewDB()
 
-	// Load metadata first
-	if err := app.loadMetadata(); err != nil {
-		return nil, fmt.Errorf("failed to load metadata: %w", err)
-	}
-
-	// Load existing DB if it exists
-	if _, err := os.Stat(cfg.DBFile); err == nil {
-		log.Printf("Found existing DB file, loading...")
-		if err := app.loadDB(); err != nil {
-			return nil, fmt.Errorf("failed to load vector database: %w", err)
-		}
-
-		log.Printf("Successfully restored collection with %d documents", len(app.metadata.Files))
-	} else {
-		log.Printf("No existing DB file found, starting fresh")
-		// Create initial collection if no DB exists
-		_, err = app.db.CreateCollection("docs", map[string]string{}, app.embeddingFunc)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create initial collection: %w", err)
-		}
-	}
-
 	return app, nil
 }
 
 func (a *App) Run(mux *http.ServeMux, addr string) error {
+	// Load metadata first
+	_ = a.loadMetadata() // ignore error, may not exist
+
+	// Invalidate metadata if data dir changed
+	absDataDir, err := filepath.Abs(a.cfg.DataDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute data dir: %w", err)
+	}
+	needInvalidate := a.metadata.DataPath != "" && a.metadata.DataPath != absDataDir
+	if needInvalidate {
+		log.Printf("Data directory changed from %s to %s, invalidating metadata and index...", a.metadata.DataPath, absDataDir)
+		a.metadata.Files = make(map[string]FileInfo)
+		a.metadata.DataPath = absDataDir
+		_ = os.Remove(a.cfg.MetadataFile)
+		_ = os.Remove(a.cfg.DBFile)
+		a.db.DeleteCollection("docs")
+		log.Printf("Deleted metadata and DB files")
+		// Save the new (empty) metadata with updated DataPath
+		if err := a.saveMetadata(); err != nil {
+			return fmt.Errorf("failed to save new metadata: %w", err)
+		}
+	}
+
+	// Load existing DB if it exists
+	if _, err := os.Stat(a.cfg.DBFile); err == nil {
+		log.Printf("Found existing DB file, loading...")
+		if err := a.loadDB(); err != nil {
+			return fmt.Errorf("failed to load vector database: %w", err)
+		}
+
+		log.Printf("Successfully restored collection with %d documents", len(a.metadata.Files))
+	} else {
+		log.Printf("No existing DB file found, starting fresh")
+		// Create initial collection if no DB exists
+		_, err = a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
+		if err != nil {
+			return fmt.Errorf("failed to create initial collection: %w", err)
+		}
+	}
 
 	// Index documents
 	if err := a.indexDocuments(); err != nil {
@@ -125,6 +143,7 @@ func (a *App) indexDocuments() error {
 	log.Printf("Current metadata contains %d files", len(a.metadata.Files))
 	log.Printf("Indexing documents in: %s", a.cfg.DocsDir)
 
+	a.metadata.DataPath = a.cfg.DocsDir
 	// Walk through docs directory
 	err := filepath.Walk(a.cfg.DocsDir, func(path string, info os.FileInfo, err error) error {
 		log.Printf("Walking path: %s", path)
