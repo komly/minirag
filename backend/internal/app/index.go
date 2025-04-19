@@ -3,13 +3,16 @@ package app
 import (
 	"context"
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/ledongthuc/pdf"
+	"github.com/nguyenthenguyen/docx"
 	"github.com/philippgille/chromem-go"
 )
 
@@ -47,7 +50,7 @@ func (a *App) indexDocuments() error {
 		}
 
 		// Skip directories and non-text files
-		if info.IsDir() || !(isTextFile(path) || isPDFFile(path)) {
+		if info.IsDir() || !(isTextFile(path) || isPDFFile(path) || isDocxFile(path) || isDocFile(path)) {
 			log.Printf("Skipping non-text file: %s", path)
 			return nil
 		}
@@ -80,9 +83,23 @@ func (a *App) indexDocuments() error {
 					continue
 				}
 				text, _ := page.GetPlainText(nil)
+				log.Printf("PDF page %d: %s", i, text)
 				sb.WriteString(text)
 			}
 			content = sb.String()
+		} else if isDocxFile(path) {
+			// Extract text from DOCX
+			doc, err := docx.ReadDocxFile(path)
+			if err != nil {
+				return fmt.Errorf("failed to read DOCX file %s: %w", path, err)
+			}
+			defer doc.Close()
+			docxText := doc.Editable().GetContent()
+			content = cleanDocxText(docxText)
+			log.Printf("DOCX content: %s", content)
+		} else if isDocFile(path) {
+			log.Printf("Skipping legacy .doc file (unsupported): %s", path)
+			return nil
 		} else {
 			// Read and index text file
 			b, rErr := os.ReadFile(path)
@@ -148,6 +165,15 @@ func isTextFile(path string) bool {
 	return textExtensions[ext]
 }
 
+// Add helpers for DOCX and DOC
+func isDocxFile(path string) bool {
+	return strings.ToLower(filepath.Ext(path)) == ".docx"
+}
+
+func isDocFile(path string) bool {
+	return strings.ToLower(filepath.Ext(path)) == ".doc"
+}
+
 // Helper to split text into chunks of maxChars length
 func splitIntoChunks(text string, maxChars int) []string {
 	var chunks []string
@@ -159,4 +185,12 @@ func splitIntoChunks(text string, maxChars int) []string {
 		chunks = append(chunks, text[start:end])
 	}
 	return chunks
+}
+
+// Helper to clean DOCX text: remove tags and decode entities
+func cleanDocxText(s string) string {
+	re := regexp.MustCompile(`<[^>]+>`)
+	noTags := re.ReplaceAllString(s, " ")
+	decoded := html.UnescapeString(noTags)
+	return strings.Join(strings.Fields(decoded), " ")
 }
