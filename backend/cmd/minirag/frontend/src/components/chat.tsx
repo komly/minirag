@@ -161,6 +161,17 @@ export function Chat() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setLoading(false);
+      // Remove the last assistant message if it's still empty
+      setMessages(prev => {
+        if (
+          prev.length > 0 &&
+          prev[prev.length - 1].role === 'assistant' &&
+          prev[prev.length - 1].content === ''
+        ) {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
     }
   };
 
