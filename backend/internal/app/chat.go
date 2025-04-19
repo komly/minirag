@@ -47,7 +47,6 @@ type ollamaResponse struct {
 }
 
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -74,7 +73,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	var context string
 	var sources []Document
 
-	maxResults := math.Min(3, float64(coll.Count()))
+	maxResults := math.Min(10, float64(coll.Count()))
 	results, err := coll.Query(r.Context(), req.Query, int(maxResults), nil, nil)
 	if err != nil {
 		log.Printf("Query failed: %v", err)
@@ -113,7 +112,7 @@ Response:`, context, req.Query)
 		Messages:    []Message{{Role: "user", Content: prompt}},
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
-		Stream:      false,
+		Stream:      true,
 	}
 
 	ollamaBody, err := json.Marshal(ollamaReq)
@@ -131,27 +130,42 @@ Response:`, context, req.Query)
 	}
 	defer ollamaResp.Body.Close()
 
-	if ollamaResp.StatusCode != http.StatusOK {
-		log.Printf("Ollama API returned status %d", ollamaResp.StatusCode)
-		http.Error(w, "Ollama API request failed", http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
 
-	var ollama ollamaResponse
-	if err := json.NewDecoder(ollamaResp.Body).Decode(&ollama); err != nil {
-		log.Printf("Failed to decode Ollama response: %v", err)
-		http.Error(w, "Failed to decode Ollama response", http.StatusInternalServerError)
-		return
+	type ollamaResponseChunk struct {
+		CreatedAt time.Time `json:"created_at"`
+		Done      bool      `json:"done"`
+		Message   Message   `json:"message"`
+		Model     string    `json:"model"`
+	}
+	// Begin streaming tokens
+	decoder := json.NewDecoder(ollamaResp.Body)
+	for {
+		var chunk ollamaResponseChunk
+		if err := decoder.Decode(&chunk); err != nil {
+			break // done streaming
+		}
+		// send chunk (you can wrap in SSE-style JSON delta if needed)
+		fmt.Fprintf(w, "data: %s\n\n", encodeJSON(map[string]string{
+			"role":    chunk.Message.Role,
+			"content": chunk.Message.Content,
+		}))
+		flusher.Flush()
 	}
 
-	// Send response
-	response := ChatResponse{
-		Answer:           ollama.Message.Content,
-		Sources:          sources,
-		Model:            a.cfg.OllamaModel,
-		ProcessingTimeMs: time.Since(startTime).Milliseconds(),
-	}
+	// Send [DONE]
+	fmt.Fprint(w, "data: [DONE]\n\n")
+	flusher.Flush()
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+func encodeJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }

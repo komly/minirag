@@ -1,6 +1,5 @@
 import { Bot, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { sendChatMessage } from '../lib/chat';
 import { ChatResponse } from '../lib/types';
 import { MemoizedMarkdown } from './MemoizedMarkdown';
 
@@ -18,15 +17,44 @@ export function Chat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Scroll to bottom only if autoScroll is enabled
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, autoScroll]);
 
+  // Disable autoscroll as soon as user scrolls up (not just when not at bottom)
+  useEffect(() => {
+    const chatDiv = chatContainerRef.current;
+    if (!chatDiv) return;
+
+    let lastScrollTop = chatDiv.scrollTop;
+
+    const handleScroll = () => {
+      const threshold = 40; // px
+      const atBottom =
+        chatDiv.scrollHeight - chatDiv.scrollTop - chatDiv.clientHeight < threshold;
+
+      // If user scrolls up (not just not at bottom, but any upward movement), disable autoscroll
+      if (chatDiv.scrollTop < lastScrollTop) {
+        setAutoScroll(false);
+      } else if (atBottom) {
+        setAutoScroll(true);
+      }
+      lastScrollTop = chatDiv.scrollTop;
+    };
+
+    chatDiv.addEventListener('scroll', handleScroll);
+    return () => {
+      chatDiv.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // SSE streaming chat handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
@@ -38,32 +66,83 @@ export function Chat() {
 
     // Add user message immediately
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    // Add empty assistant message for streaming
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      const result = await sendChatMessage({
-        query: userMessage,
-        temperature: 0.7,
-        max_tokens: 1000,
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: userMessage,
+          temperature: 0.7,
+          max_tokens: 1000,
+        }),
       });
 
-      // Add assistant response
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: result.answer,
-        sources: result.sources,
-        model: result.model,
-        processing_time_ms: result.processing_time_ms,
-      }]);
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let done = false;
+      let assistantContent = '';
+      let buffer = '';
+      let sources: ChatResponse['sources'] | undefined = undefined;
+      let model: string | undefined = undefined;
+      let processing_time_ms: number | undefined = undefined;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+          // Process SSE chunks
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+          for (const part of parts) {
+            if (part.startsWith('data: ')) {
+              const data = part.slice(6).trim();
+              if (data === '[DONE]') {
+                setLoading(false);
+                break;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.role === 'assistant') {
+                  assistantContent += parsed.content;
+                  setMessages(prev => {
+                    // Update the last assistant message
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                      ...updated[updated.length - 1],
+                      content: assistantContent,
+                      sources,
+                      model,
+                      processing_time_ms,
+                    };
+                    return updated;
+                  });
+                }
+              } catch (err) {
+                // ignore JSON parse errors for non-data lines
+              }
+            }
+          }
+        }
+      }
+      setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
+        ref={chatContainerRef}
+      >
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-gray-500">Start a conversation by typing a message below</p>
@@ -86,7 +165,6 @@ export function Chat() {
               <div className={`flex flex-col gap-1 max-w-[80%] ${
                 message.role === 'user' ? 'items-end' : 'items-start'
               }`}>
-               
                   <MemoizedMarkdown 
                     content={message.content} 
                     id={`msg-${index}`} 
