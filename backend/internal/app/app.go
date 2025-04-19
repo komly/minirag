@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,8 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 
 	"bytes"
@@ -126,97 +123,6 @@ func trimHostPrefix(addr string) string {
 	return addr
 }
 
-func (a *App) indexDocuments() error {
-	ctx := context.Background()
-
-	// Get existing collection or create new one
-	coll := a.db.GetCollection("docs", a.embeddingFunc)
-	if coll == nil {
-		var err error
-		coll, err = a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
-		if err != nil {
-			return fmt.Errorf("failed to create collection: %w", err)
-		}
-	}
-
-	// If force-reindex is set, clear everything
-	if a.cfg.ForceReindex {
-		log.Printf("Force reindexing enabled, clearing existing metadata and collection")
-		a.metadata.Files = make(map[string]FileInfo)
-		// Remove and recreate collection
-		a.db.DeleteCollection("docs")
-		coll, _ = a.db.CreateCollection("docs", map[string]string{}, a.embeddingFunc)
-	}
-
-	log.Printf("Current metadata contains %d files", len(a.metadata.Files))
-	log.Printf("Indexing documents in: %s", a.cfg.DocsDir)
-
-	a.metadata.DataPath = a.cfg.DocsDir
-	// Walk through docs directory
-	err := filepath.Walk(a.cfg.DocsDir, func(path string, info os.FileInfo, err error) error {
-		log.Printf("Walking path: %s", path)
-		if err != nil {
-			return err
-		}
-
-		// Skip directories and non-text files
-		if info.IsDir() || !isTextFile(path) {
-			log.Printf("Skipping non-text file: %s", path)
-			return nil
-		}
-
-		// Check if file needs indexing
-		relPath, _ := filepath.Rel(a.cfg.DocsDir, path)
-		fileInfo, exists := a.metadata.Files[relPath]
-		if !a.cfg.ForceReindex && exists && fileInfo.LastModified.Equal(info.ModTime()) && fileInfo.Size == info.Size() {
-			log.Printf("Skipping unchanged file: %s", relPath)
-			return nil
-		}
-		log.Printf("Indexing file: %s", relPath)
-
-		// Read and index file
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read file %s: %w", path, err)
-		}
-
-		doc := chromem.Document{
-			ID:      relPath,
-			Content: string(content),
-		}
-
-		// Add document with proper error handling
-		if err := coll.AddDocuments(ctx, []chromem.Document{doc}, runtime.NumCPU()); err != nil {
-			return fmt.Errorf("failed to add document %s: %w", path, err)
-		}
-
-		// Update metadata
-		a.metadata.Files[relPath] = FileInfo{
-			Path:         relPath,
-			LastModified: info.ModTime(),
-			Size:         info.Size(),
-		}
-
-		log.Printf("Indexed file: %s", relPath)
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk docs directory: %w", err)
-	}
-
-	// Save metadata and DB
-	if err := a.saveMetadata(); err != nil {
-		return fmt.Errorf("failed to save metadata: %w", err)
-	}
-
-	if err := a.saveDB(); err != nil {
-		return fmt.Errorf("failed to save vector database: %w", err)
-	}
-
-	return nil
-}
-
 func (a *App) handleQuery(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -289,18 +195,6 @@ func (a *App) loadDB() error {
 
 func (a *App) saveDB() error {
 	return a.db.ExportToFile(a.cfg.DBFile, true, "", "docs")
-}
-
-func isTextFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	textExtensions := map[string]bool{
-		".txt": true,
-		".md":  true,
-		".rst": true,
-		".csv": true,
-		".log": true,
-	}
-	return textExtensions[ext]
 }
 
 func (a *App) handleDebugDB(w http.ResponseWriter, r *http.Request) {
