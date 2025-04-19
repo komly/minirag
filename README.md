@@ -14,7 +14,7 @@
 
 ![Demo Screenshot](doc/screenshot.png)
 
-**MiniRAG** is a minimalist, self-hosted Retrieval-Augmented Generation (RAG) solution.  
+**MiniRAG** is a single-binary, self-hosted chat webapp with Retrieval-Augmented Generation (RAG).  
 It runs as a **single static binary** on your machine—no cloud, no dependencies, no external services.
 
 - **Self-hosted:** All data and LLM inference stay on your device.
