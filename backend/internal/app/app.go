@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"bytes"
 
 	"minirag/internal/config"
 
@@ -52,6 +55,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 }
 
 func (a *App) Run(mux *http.ServeMux, addr string) error {
+	// Ensure Ollama and models are available
+	if err := ensureOllamaAndModels(a.cfg); err != nil {
+		return fmt.Errorf("ollama model check failed: %w", err)
+	}
+
 	// Load metadata first
 	_ = a.loadMetadata() // ignore error, may not exist
 
@@ -329,4 +337,48 @@ func (a *App) handleDebugDB(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(debugInfo)
+}
+
+func ensureOllamaAndModels(cfg *config.Config) error {
+	type ollamaPullRequest struct {
+		Name   string `json:"name"`
+		Stream bool   `json:"stream"`
+	}
+
+	// 1. Check if Ollama is running
+	resp, err := http.Get(cfg.OllamaURL + "/api/tags")
+	if err != nil || resp.StatusCode != 200 {
+		return fmt.Errorf("ollama is not running or not reachable at %s", cfg.OllamaURL)
+	}
+	defer resp.Body.Close()
+
+	// 2. Check if chat model exists
+	models := []string{cfg.OllamaModel, cfg.OllamaEmbedModel}
+	for _, model := range models {
+		found := false
+		resp, err := http.Get(cfg.OllamaURL + "/api/tags")
+		if err == nil && resp.StatusCode == 200 {
+			body, _ := io.ReadAll(resp.Body)
+			if bytes.Contains(body, []byte(model)) {
+				found = true
+			}
+		}
+		if !found {
+			log.Printf("Model %s not found, pulling...", model)
+			pullReq := ollamaPullRequest{Name: model, Stream: false}
+			b, _ := json.Marshal(pullReq)
+			pullResp, err := http.Post(cfg.OllamaURL+"/api/pull", "application/json", bytes.NewBuffer(b))
+			if err != nil {
+				return fmt.Errorf("failed to pull model %s: %v", model, err)
+			}
+			defer pullResp.Body.Close()
+			if pullResp.StatusCode != 200 {
+				return fmt.Errorf("failed to pull model %s: status %d", model, pullResp.StatusCode)
+			}
+			log.Printf("Model %s pulled successfully", model)
+		} else {
+			log.Printf("Model %s is available", model)
+		}
+	}
+	return nil
 }

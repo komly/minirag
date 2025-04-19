@@ -42,10 +42,6 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-type ollamaResponse struct {
-	Message Message `json:"message"`
-}
-
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
